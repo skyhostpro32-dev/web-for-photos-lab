@@ -1,4 +1,3 @@
-
 import streamlit as st
 import sqlite3
 from PIL import Image, ImageFilter
@@ -11,74 +10,66 @@ import io
 st.set_page_config(page_title="AI Dashboard", layout="wide")
 
 # =========================
-# DATABASE SETUP
+# DATABASE
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
-
-c.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
-    password TEXT
-)
-""")
+c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
 conn.commit()
 
 # =========================
-# CSS (PRO CLEAN UI)
+# CSS
 # =========================
 st.markdown("""
 <style>
 #MainMenu, header, footer {visibility: hidden;}
 
-.block-container {
-    padding-top: 0rem !important;
-}
+.block-container {padding-top: 0rem !important;}
 
-/* Background */
 html, body, [data-testid="stAppViewContainer"] {
     background: linear-gradient(135deg, #f5f3ff, #ede9fe);
 }
 
-/* Auth container */
+/* AUTH BOX */
 .auth-box {
     max-width: 350px;
     margin: auto;
-    margin-top: 80px;
+    margin-top: 60px;
     background: white;
     padding: 25px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(139,92,246,0.2);
 }
 
-/* Buttons */
-.stButton>button {
+/* BUTTONS */
+div.stButton > button {
     width: 100%;
     background: linear-gradient(135deg, #a78bfa, #8b5cf6);
     color: white;
     border-radius: 8px;
+    padding: 8px;
 }
 
-/* Tool cards */
+/* TOOL BUTTON (hidden click layer) */
+.tool-btn button {
+    height: 120px;
+    opacity: 0;
+    position: absolute;
+}
+
+/* TOOL CARD */
 .tool-card {
     background: white;
     padding: 18px;
     border-radius: 15px;
     text-align: center;
     border: 1px solid #e9d5ff;
-    transition: 0.3s;
     height: 120px;
+    transition: 0.3s;
 }
 .tool-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 20px rgba(139,92,246,0.2);
-}
-
-/* Hide button overlay */
-.stButton>button {
-    height: 120px;
-    opacity: 0;
-    position: absolute;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -118,9 +109,7 @@ def auth_page():
     if st.session_state.mode == "login":
         if st.button("Login Now"):
             c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
-            user = c.fetchone()
-
-            if user:
+            if c.fetchone():
                 st.session_state.logged_in = True
                 st.session_state.user = username
                 st.rerun()
@@ -144,10 +133,21 @@ def auth_page():
     st.markdown('</div>', unsafe_allow_html=True)
 
 # =========================
+# TOOL CARD FUNCTION
+# =========================
+def tool_card(name, icon, key):
+    col = st.container()
+    with col:
+        st.markdown('<div class="tool-btn">', unsafe_allow_html=True)
+        if st.button("", key=key):
+            st.session_state.tool = key
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="tool-card">{icon}<br>{name}</div>', unsafe_allow_html=True)
+
+# =========================
 # DASHBOARD
 # =========================
 def dashboard():
-
     st.markdown("## ✨ AI Dashboard")
 
     if st.button("Logout"):
@@ -156,39 +156,15 @@ def dashboard():
 
     st.markdown("### 🧰 Tools")
 
-    col1, col2, col3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
+    with c1: tool_card("Background", "🎨", "bg")
+    with c2: tool_card("Enhance", "✨", "enh")
+    with c3: tool_card("Erase", "🧽", "erase")
 
-    with col1:
-        if st.button("", key="bg"):
-            st.session_state.tool = "bg"
-        st.markdown('<div class="tool-card">🎨<br>Background</div>', unsafe_allow_html=True)
-
-    with col2:
-        if st.button("", key="enh"):
-            st.session_state.tool = "enh"
-        st.markdown('<div class="tool-card">✨<br>Enhance</div>', unsafe_allow_html=True)
-
-    with col3:
-        if st.button("", key="erase"):
-            st.session_state.tool = "erase"
-        st.markdown('<div class="tool-card">🧽<br>Erase</div>', unsafe_allow_html=True)
-
-    col4, col5, col6 = st.columns(3)
-
-    with col4:
-        if st.button("", key="blur"):
-            st.session_state.tool = "blur"
-        st.markdown('<div class="tool-card">🌫<br>Blur</div>', unsafe_allow_html=True)
-
-    with col5:
-        if st.button("", key="remove"):
-            st.session_state.tool = "remove"
-        st.markdown('<div class="tool-card">❌<br>Remove</div>', unsafe_allow_html=True)
-
-    with col6:
-        if st.button("", key="bgtool"):
-            st.session_state.tool = "bgtool"
-        st.markdown('<div class="tool-card">🖼<br>BG Tool</div>', unsafe_allow_html=True)
+    c4, c5, c6 = st.columns(3)
+    with c4: tool_card("Blur", "🌫", "blur")
+    with c5: tool_card("Remove", "❌", "remove")
+    with c6: tool_card("BG Tool", "🖼", "bgtool")
 
     st.markdown("---")
 
@@ -210,27 +186,24 @@ def dashboard():
                 mask = np.mean(arr, axis=2) > 200
                 arr[mask] = color
                 result = Image.fromarray(arr)
-
-                with colB:
-                    st.image(result)
+                with colB: st.image(result)
 
         elif st.session_state.tool == "enh":
             if st.button("Enhance"):
                 result = image.filter(ImageFilter.SHARPEN)
-                with colB:
-                    st.image(result)
+                with colB: st.image(result)
 
         elif st.session_state.tool == "erase":
-            st.link_button("Open", "https://skyhostpro32-dev.github.io/erase-tool/")
+            st.link_button("Open Tool", "https://skyhostpro32-dev.github.io/erase-tool/")
 
         elif st.session_state.tool == "blur":
-            st.link_button("Open", "https://skyhostpro32-dev.github.io/index./")
+            st.link_button("Open Tool", "https://skyhostpro32-dev.github.io/index./")
 
         elif st.session_state.tool == "remove":
-            st.link_button("Open", "https://l3c2ddsnh8gkka5rnezbak.streamlit.app/")
+            st.link_button("Open Tool", "https://l3c2ddsnh8gkka5rnezbak.streamlit.app/")
 
         elif st.session_state.tool == "bgtool":
-            st.link_button("Open", "https://import-cus7p2zpohpwkbavzyrmpl.streamlit.app/")
+            st.link_button("Open Tool", "https://import-cus7p2zpohpwkbavzyrmpl.streamlit.app/")
 
 # =========================
 # ROUTER
